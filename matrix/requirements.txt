@@ -1,0 +1,7 @@
+numpy
+scipy
+pydantic>=2
+scikit-learn
+matplotlib
+pytest
+google-genai
