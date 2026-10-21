@@ -1,0 +1,45 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "matrix"
+version = "0.1.0"
+description = "matriX: cost-aware diagnosis of conflicting simulated materials-characterization evidence."
+readme = "README.md"
+requires-python = ">=3.11"
+# authors = [{ name = "Shagun Rajput", "Aarav Jain"}]
+# license = { text = "MIT" }
+keywords = ["materials-science", "agents", "benchmark", "sequential-diagnosis", "hackathon"]
+
+dependencies = [
+    "numpy>=1.26",
+    "scipy>=1.11",        # NNLS (C3), fitting (C2, C4)
+    "pandas>=2.1",
+    "pydantic>=2.5",      # case, check, and trace schemas
+    "pyyaml>=6.0",        # sim_constants.yaml
+    "matplotlib>=3.8",    # accuracy-cost figures
+    "scikit-learn>=1.3",  # B3b logistic-regression prior
+]
+
+[project.optional-dependencies]
+# Demo notebook (offline trace replay).
+demo = ["marimo"]
+# LLM arms (B4, B5). The wrapper is provider-neutral; install the SDK you use.
+llm = ["anthropic"]
+dev = ["pytest>=7.4", "ruff"]
+all = ["matrix-diag[demo,llm,dev]"]
+
+[tool.setuptools]
+packages = ["matrix"]
+
+[tool.setuptools.package-data]
+matrix = ["*.yaml"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+markers = [
+    "slow: long-running simulation or oracle tests (deselect with -m 'not slow')",
+    "llm: requires an LLM API key; excluded from the default run",
+]
