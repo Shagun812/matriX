@@ -38,7 +38,7 @@ def make_agent(agent_cls, table, cfg):
     return agent_cls(Planner(table), cfg)
 
 
-def test_b0_runs_every_check_and_ignores_budget(table, visible):
+def test_b0_uses_screen_only(table, visible):
     calls = []
     cfg = AgentConfig(
         costs={c: 1.0 for c in CHECKS},
@@ -48,10 +48,10 @@ def test_b0_runs_every_check_and_ignores_budget(table, visible):
 
     trace = agent.run("case-b0", visible, make_runner(table, calls))
 
-    assert set(calls) == set(CHECKS)
-    assert len(calls) == len(CHECKS)
-    assert trace.stop_reason == StopReason.ALL_USED
-    assert trace.steps[-1].n_checks == len(CHECKS)
+    assert calls == []
+    assert trace.stop_reason == StopReason.LOW_GAIN
+    assert trace.steps[-1].n_checks == 0
+    assert trace.steps[-1].cumulative_cost == 0.0
     assert trace.final_only is True
 
 
@@ -122,3 +122,28 @@ def test_trace_starts_with_zero_cost_prior_step(table, visible):
     assert first.n_checks == 0
     assert first.cumulative_cost == 0.0
     assert np.isclose(sum(first.posterior.values()), 1.0)
+
+
+def test_planned_agent_uses_initial_prior_for_cumulative_observations(table, visible):
+    cfg = AgentConfig(eps_gain=0.0, seed=17)
+    planner = Planner(table)
+    agent = B1Random(planner, cfg)
+    trace = agent.run(
+        "case-cumulative-posterior",
+        visible,
+        make_runner(table, []),
+    )
+
+    prior = np.array([trace.prior[h] for h in ("H1", "H2", "H3", "H4")])
+    assert np.allclose(prior, np.full(4, 0.25))
+
+    observed = {}
+    for step in trace.steps[1:]:
+        observed[step.action] = planner.table.bin(
+            step.action, step.result.primary_score
+        )
+        expected = planner.posterior(prior, observed)
+        actual = np.array(
+            [step.posterior[h] for h in ("H1", "H2", "H3", "H4")]
+        )
+        assert np.allclose(actual, expected)

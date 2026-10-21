@@ -1,4 +1,4 @@
-# MaterialFalsify
+# MatriX
 
 **A cost-aware investigator for diagnosing conflicting materials-characterization evidence.**
 

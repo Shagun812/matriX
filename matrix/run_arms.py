@@ -15,6 +15,7 @@ import json
 import sys
 from pathlib import Path
 from typing import Callable, Optional
+import numpy as np
 
 from . import mock
 from .agents import (Agent, AgentConfig, B0FullCheck, B1Random, B2CheapestFirst, B3GreedyIG, B3bLearnedPrior,
@@ -33,9 +34,17 @@ def load_cases(path) -> list[Case]:
     return [Case.model_validate(c) for c in json.loads(Path(path).read_text())]
 
 
-def save_cases(cases: list[Case], path) -> None:
-    Path(path).write_text(json.dumps([c.model_dump() for c in cases]))
+def save_cases(cases: list[Case], path: str | Path) -> None:
+    def json_default(obj):
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        if isinstance(obj, np.generic):
+            return obj.item()
+        raise TypeError(f"Object of type {type(obj).__name__} is not JSON serializable")
 
+    Path(path).write_text(
+        json.dumps([c.model_dump() for c in cases], default=json_default)
+    )
 
 def trace_path(out: Path, arm: str, case_id: str) -> Path:
     return out / arm / f"{case_id}.json"
@@ -114,7 +123,8 @@ def main(argv=None) -> int:
         if not (a.cases and a.table):
             ap.error("--cases and --table are required unless --mock")
         from .checks import runner as real_runner  # Person B's module
-        table, cases, runner_for = LikelihoodTable.load(a.table), load_cases(a.cases), real_runner
+        table, cases = LikelihoodTable.load(a.table), load_cases(a.cases)
+        runner_for = lambda case: lambda check_id: real_runner(cases, case.case_id, check_id)
         pm = PriorModel.load(a.prior_model) if a.prior_model else None
         llm = None
         if {"B4", "B5"} & set(arms):

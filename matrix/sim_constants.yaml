@@ -1,0 +1,130 @@
+# Frozen simulator constants for the MatriX benchmark.
+#
+# This file mirrors matrix/sim_constants.py.
+# Values here are metadata/audit documentation; Python uses the .py constants
+# directly so the simulator does not require PyYAML at runtime.
+
+simulator:
+  version: "1.0"
+  source: "MatriX benchmark README / resolved benchmark specification"
+  paper_identifier: "not specified by benchmark specification"
+  paper_date: "not specified by benchmark specification"
+
+reference:
+  phase:
+    value: "anatase"
+    source: "MatriX benchmark README / resolved benchmark specification"
+    paper_identifier: "not specified"
+    paper_date: "not specified"
+  composition:
+    value: 1.0
+    source: "MatriX benchmark reference convention"
+    paper_identifier: "not specified"
+    paper_date: "not specified"
+  gap_ev:
+    value: 3.20
+    source: "MatriX benchmark reference convention"
+    paper_identifier: "not specified"
+    paper_date: "not specified"
+  main_peak_2theta:
+    value: 25.28
+    source: "MatriX benchmark reference convention"
+    paper_identifier: "not specified"
+    paper_date: "not specified"
+
+xrd:
+  anatase_peaks_2theta:
+    value: [25.28, 37.80, 48.05, 53.89, 55.06, 62.69]
+    source: "MatriX benchmark synthetic reference pattern"
+    paper_identifier: "not specified"
+    paper_date: "not specified"
+  rutile_peaks_2theta:
+    value: [27.45, 36.08, 39.20, 41.23, 44.05, 54.32, 56.64]
+    source: "MatriX benchmark synthetic reference pattern"
+    paper_identifier: "not specified"
+    paper_date: "not specified"
+
+screen:
+  k_screen:
+    value: 3.0
+    source: "MatriX benchmark README / resolved benchmark specification"
+    paper_identifier: "not applicable"
+    paper_date: "not applicable"
+  composition_tolerance:
+    value: 0.05
+    source: "MatriX benchmark README / resolved benchmark specification"
+    paper_identifier: "not applicable"
+    paper_date: "not applicable"
+  structure_rms_tolerance:
+    value: 0.10
+    source: "MatriX benchmark README / resolved benchmark specification"
+    paper_identifier: "not applicable"
+    paper_date: "not applicable"
+  structure_unmatched_tolerance:
+    value: 0.20
+    source: "MatriX benchmark README / resolved benchmark specification"
+    paper_identifier: "not applicable"
+    paper_date: "not applicable"
+  optical_gap_tolerance:
+    value: 0.08
+    source: "MatriX benchmark README / resolved benchmark specification"
+    paper_identifier: "not applicable"
+    paper_date: "not applicable"
+
+noise:
+  sigma1: 0.010
+  sigma2: 0.025
+  sigma3: 0.050
+  source: "MatriX benchmark synthetic noise schedule"
+  paper_identifier: "not specified"
+  paper_date: "not specified"
+
+magnitude_bands:
+  B1: [0.10, 0.20]
+  B2: [0.20, 0.35]
+  B3: [0.35, 0.50]
+  B4: [0.50, 0.70]
+  B5: [0.70, 0.90]
+  source: "MatriX benchmark magnitude-band design"
+  paper_identifier: "not specified"
+  paper_date: "not specified"
+
+fault_response:
+  H1:
+    rutile_gap_ev: 3.00
+    source: "MatriX phenomenological benchmark coupling"
+    paper_identifier: "not specified"
+    paper_date: "not specified"
+  H2:
+    composition_shift_per_magnitude: 0.05
+    xrd_shift_per_magnitude: 0.20
+    optical_shift_per_magnitude: 0.04
+    source: "MatriX phenomenological benchmark coupling; H2 explicitly phenomenological"
+    paper_identifier: "not applicable"
+    paper_date: "not applicable"
+  H3:
+    offset_per_magnitude: 0.35
+    source: "MatriX phenomenological instrumental-offset model"
+    paper_identifier: "not specified"
+    paper_date: "not specified"
+  H4:
+    optical_shift_per_magnitude: 0.20
+    source: "MatriX phenomenological optical-distortion model"
+    paper_identifier: "not specified"
+    paper_date: "not specified"
+
+repeat:
+  H3_offset_scale: 0.10
+  H4_distortion_scale: 0.35
+  noise_factor: 0.50
+  source: "MatriX D2 repeat-design specification"
+  paper_identifier: "not applicable"
+  paper_date: "not applicable"
+
+oracle:
+  tau_id: 0.80
+  bins: 3
+  draws: 500
+  source: "MatriX benchmark oracle specification"
+  paper_identifier: "not applicable"
+  paper_date: "not applicable"
