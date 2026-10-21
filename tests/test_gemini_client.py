@@ -3,7 +3,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from matrix.llm import GeminiClient, LLMError
+from matrix.llm import EmptyResponseError, GeminiClient, LLMError
 
 
 class FakeGenerateContent:
@@ -77,9 +77,28 @@ def test_gemini_sends_prompt_and_returns_text(monkeypatch):
 
 def test_gemini_rejects_empty_response(monkeypatch):
     monkeypatch.setenv("GEMINI_API_KEY", "test-key")
-    install_fake_sdk(monkeypatch, SimpleNamespace(text=""))
+    install_fake_sdk(
+        monkeypatch,
+        SimpleNamespace(
+            text="",
+            candidates=[
+                SimpleNamespace(
+                    finish_reason="MAX_TOKENS",
+                    finish_message="Output token limit reached",
+                )
+            ],
+            prompt_feedback=SimpleNamespace(block_reason=None),
+            usage_metadata=SimpleNamespace(
+                prompt_token_count=12,
+                candidates_token_count=0,
+                thoughts_token_count=16,
+                total_token_count=28,
+            ),
+        ),
+    )
 
     client = GeminiClient("test-model")
 
-    with pytest.raises(LLMError, match="empty response"):
+    with pytest.raises(EmptyResponseError, match="MAX_TOKENS") as exc:
         client.complete("system", "user")
+    assert "total_token_count" in str(exc.value)

@@ -4,6 +4,7 @@ import pytest
 
 from matrix.llm import (
     CachedLLM,
+    EmptyResponseError,
     LLMClient,
     LLMError,
     extract_json,
@@ -111,6 +112,17 @@ def test_api_errors_are_not_cached(tmp_path):
     assert json.loads(result)["distribution"]
     assert client.calls == 2
     assert llm.stats["api_errors"] == 1
+
+
+def test_empty_response_is_counted_separately_from_api_errors(tmp_path):
+    client = FakeClient([EmptyResponseError("empty response")])
+    llm = CachedLLM(client, tmp_path, "test-v1")
+
+    with pytest.raises(EmptyResponseError):
+        llm.complete("system", "user")
+
+    assert llm.stats["empty_responses"] == 1
+    assert llm.stats["api_errors"] == 0
 
 
 def test_get_json_retries_invalid_output_once(tmp_path):

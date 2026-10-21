@@ -24,6 +24,10 @@ class LLMError(RuntimeError):
     pass
 
 
+class EmptyResponseError(LLMError):
+    pass
+
+
 class LLMClient(ABC):
     model: str = "unknown"
     params: dict = {}
@@ -68,7 +72,35 @@ class GeminiClient(LLMClient):
         )
         text = response.text
         if not text:
-            raise LLMError("Gemini returned an empty response")
+            candidates = getattr(response, "candidates", None) or []
+            candidate_details = [
+                {
+                    "finish_reason": str(getattr(candidate, "finish_reason", None)),
+                    "finish_message": getattr(candidate, "finish_message", None),
+                }
+                for candidate in candidates
+            ]
+            prompt_feedback = getattr(response, "prompt_feedback", None)
+            usage = getattr(response, "usage_metadata", None)
+            diagnostics = {
+                "candidates": candidate_details,
+                "prompt_block_reason": str(
+                    getattr(prompt_feedback, "block_reason", None)
+                ),
+                "usage": {
+                    name: getattr(usage, name, None)
+                    for name in (
+                        "prompt_token_count",
+                        "candidates_token_count",
+                        "thoughts_token_count",
+                        "total_token_count",
+                    )
+                },
+            }
+            raise EmptyResponseError(
+                "Gemini returned an empty response; diagnostics="
+                + json.dumps(diagnostics, default=str, sort_keys=True)
+            )
         return text
 
 
@@ -77,7 +109,13 @@ class CachedLLM:
         self.client, self.prompt_version = client, prompt_version
         self.dir = Path(cache_dir)
         self.dir.mkdir(parents=True, exist_ok=True)
-        self.stats = {"calls": 0, "cache_hits": 0, "api_errors": 0, "invalid_outputs": 0}
+        self.stats = {
+            "calls": 0,
+            "cache_hits": 0,
+            "api_errors": 0,
+            "empty_responses": 0,
+            "invalid_outputs": 0,
+        }
 
     def _key(self, system, user, sample_idx, attempt) -> str:
         blob = json.dumps([self.client.model, self.prompt_version, self.client.params, system, user,
@@ -92,6 +130,9 @@ class CachedLLM:
         self.stats["calls"] += 1
         try:
             text = self.client.complete(system, user)
+        except EmptyResponseError:
+            self.stats["empty_responses"] += 1
+            raise
         except Exception as e:  # noqa: BLE001
             self.stats["api_errors"] += 1
             raise LLMError(str(e)) from e
