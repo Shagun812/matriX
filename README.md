@@ -1,4 +1,4 @@
-# matriX — Demo Run and Real-Data Validation Guide
+# matriX: Cost-Aware Scientific Diagnosis with AI Agents
 
 matriX is a materials-characterization diagnostic system for TiO2 evidence. It evaluates whether a sample can be diagnosed from composition, XRD, and optical measurements using an evidence-first workflow, with a real-data calibration path and a synthetic demo-data path for local validation and presentations.
 
@@ -9,7 +9,7 @@ This repository includes:
 - a one-click script to run a complete demo end to end
 - a command-line diagnosis tool that reads measurement files and produces a report
 
-The project is intended for demo runs and local validation. The synthetic demo files are not experimental data and must not be presented as scientific measurements.
+The project is intended for demos and local validation. The synthetic demo files are not experimental data and must not be presented as scientific measurements.
 
 ## 1. Project overview
 
@@ -496,7 +496,7 @@ source .venv/bin/activate
 ./run_real_demo.sh
 ```
 
-## 12. Recommended demo run order
+## 12. Recommended demo order
 
 For a simple presentation or internal demo, use this sequence:
 
@@ -518,9 +518,9 @@ python -m matrix diagnose \
   --out results/matrix-real-demo-full
 ```
 
-## 13. Example result
+## 13. Result and Generated Artifacts
 
-The demo run should produce a diagnosis such as:
+The demo should produce a diagnosis such as:
 
 ```text
 matriX TiO2 evidence report
@@ -534,6 +534,38 @@ C5: AVAILABLE
 ```
 
 This is exactly the expected behavior for the synthetic demo fixture.
+
+<img width="1234" height="876" alt="image" src="https://github.com/user-attachments/assets/3a739221-4bde-4262-97b9-a4a28e95c314" />
+(Snippet of the Diagnostic Result)
+
+After running the full demo, matriX writes the final diagnostic outputs to:
+
+```text
+results/matrix-real-demo-full/
+├── report.md
+├── evidence.json
+└── diagnosis.json
+```
+
+### Output files
+
+- **`report.md`** — Human-readable diagnostic report containing the sample information, check statuses, and diagnosis summary.
+- **`evidence.json`** — Structured evidence collected from the composition, XRD, optical, and repeat-measurement checks.
+- **`diagnosis.json`** — Machine-readable diagnostic output, including the model's diagnosis and associated results.
+
+On the development machine, these files are located at:
+
+```text
+/home/aaravjain62677/Desktop/matriX/matriX_/matriX/results/matrix-real-demo-full/report.md
+/home/aaravjain62677/Desktop/matriX/matriX_/matriX/results/matrix-real-demo-full/evidence.json
+/home/aaravjain62677/Desktop/matriX/matriX_/matriX/results/matrix-real-demo-full/diagnosis.json
+```
+
+These are generated artifacts: they will be available after a successful diagnosis run. The absolute paths above are specific to the current development environment; use the relative paths when running matriX on another machine.
+
+**Important:** The current demo uses synthetic TiO₂ data. Its outputs demonstrate the diagnostic pipeline and must not be presented as validated experimental findings.
+
+
 
 ## 14. Summary
 
