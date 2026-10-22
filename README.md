@@ -29,6 +29,67 @@ The repository supports two common workflows:
    - evaluates a held-out dataset
    - diagnoses a new sample with the calibrated model
 
+## 1.1 Scientific provenance and Valency MCP
+
+matriX is designed to be scientifically grounded, but it intentionally separates the research and provenance layer from the runtime decision layer. The benchmark is built on fixed checks, fixed evidence, a frozen calibration pipeline, and an explicit information set. We do not allow live external literature lookup to alter the diagnostic decision during evaluation.
+
+For that reason, Valency MCP is used as a builder-side research and provenance tool, not as part of the runtime diagnosis loop.
+
+### Purpose of Valency MCP in this repository
+
+Valency MCP supports the following tasks during development:
+
+- source and verify TiO2 reference constants, including anatase/rutile phase assumptions, reference peak behavior, and optical gap conventions
+- check candidate simulator assumptions against external scientific literature before they are frozen into config or documentation
+- verify prior-art and novelty claims in the project write-up and README
+- help record provenance for constants and references used to justify the benchmark design
+- support human review of scientific grounding without changing the formal benchmark rules or information sets
+
+In other words, Valency helps the builder answer questions like:
+
+- What are defensible TiO2 reference values for XRD and optical behavior?
+- Are the chosen fault couplings and perturbation ranges consistent with the intended materials-science narrative?
+- What prior work is closest to this benchmark, and how should the project position itself?
+- Are the assumptions behind the simulator transparent and traceable to legitimate references?
+
+### Boundary of use
+
+Valency MCP must not be used as an in-loop runtime tool for the actual diagnosis path. The benchmark should not depend on a live external literature search while evaluating a sample or selecting checks. Doing so would change the information set between runs and compromise fairness across arms.
+
+The correct boundary is:
+
+- builder / researcher: may use Valency MCP to gather and verify scientific context
+- runtime evaluation: uses only the project-defined evidence, checks, and calibration logic
+
+This preserves the fair-comparison design and keeps the benchmark reproducible.
+
+### Copilot CLI setup
+
+The repository is compatible with the Valency MCP setup described in the Valency Copilot CLI guide. The setup is done in the local developer environment using the Copilot CLI tools, not by committing secrets or MCP configuration into the repo.
+
+Typical setup flow:
+
+```bash
+copilot mcp list
+copilot mcp get valency
+```
+
+If Valency is not configured, add it with:
+
+```bash
+copilot mcp add --transport http valency https://mcp.valency.io/
+```
+
+If the server requires browser authorization, resume the Copilot CLI session and complete sign-in before continued use.
+
+### Recommended repo policy
+
+The project should document the MCP usage as follows:
+
+> Valency MCP is used as a builder-side literature and provenance tool to source and verify TiO2 constants, prior-art references, and simulator assumptions. It is not part of the benchmark’s runtime information set for diagnosis. The benchmark uses only agent-visible measurements, checks, and fixed simulator logic, while MCP supports external validation of scientific grounding outside the decision loop.
+
+This phrasing is clear, honest, and consistent with a reproducible benchmark design.
+
 ## 2. Repository structure
 
 ```text
