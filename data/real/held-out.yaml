@@ -1,0 +1,23 @@
+schema_version: 1
+dataset_id: mock-held-out-study-2026
+
+samples:
+  - sample_id: mock-heldout-001
+    material: tio2
+    ground_truth: H1
+    ground_truth_confidence: 0.93
+    composition: measurements/mock-heldout-001-composition.csv
+    xrd: measurements/mock-heldout-001-xrd.csv
+    optical: measurements/mock-heldout-001-optical.csv
+    metadata: measurements/mock-heldout-001-metadata.yaml
+    xrd_reference: references/anatase-rutile-profile.csv
+    repeat:
+      composition: measurements/mock-heldout-001-composition-repeat.csv
+      xrd: measurements/mock-heldout-001-xrd-repeat.csv
+      optical: measurements/mock-heldout-001-optical-repeat.csv
+    provenance:
+      source: mock-independent-laboratory-fixture
+      measurement_ids:
+        composition: mock-heldout-comp-001
+        xrd: mock-heldout-xrd-001
+        optical: mock-heldout-optical-001
