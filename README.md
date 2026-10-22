@@ -138,32 +138,89 @@ This phrasing is clear, honest, and consistent with a reproducible benchmark des
 
 ## 3. Setup
 
-### 3.1 Create and activate a virtual environment
+The commands below work on Linux, macOS, and Windows PowerShell. Where shell syntax differs, the examples include both Unix-style and Windows-style variants.
+
+### 3.1 Clone and open the repo
 
 ```bash
 cd /path/to/matriX
-python -m venv .venv
+```
+
+On Windows PowerShell:
+
+```powershell
+cd C:\path\to\matriX
+```
+
+### 3.2 Create and activate a virtual environment
+
+Linux/macOS:
+
+```bash
+python3 -m venv .venv
 source .venv/bin/activate
 ```
 
-### 3.2 Install dependencies
+Windows PowerShell:
+
+```powershell
+py -m venv .venv
+.\.venv\Scripts\Activate.ps1
+```
+
+Windows Command Prompt:
+
+```cmd
+py -m venv .venv
+.venv\Scripts\activate.bat
+```
+
+### 3.3 Install dependencies
+
+Linux/macOS:
 
 ```bash
 pip install -r requirements.txt
 pip install -e .
 ```
 
+Windows PowerShell:
+
+```powershell
+python -m pip install -r requirements.txt
+python -m pip install -e .
+```
+
 If you prefer a smaller environment for the demo, the project also supports direct package installation from `requirements.txt`.
+
+### 3.4 Optional: verify the install
+
+```bash
+python -m matrix --help
+```
+
+If the CLI loads successfully, the environment is ready.
 
 ## 4. Quick start: run the full demo
 
 The easiest way to run the project is the included script:
+
+Linux/macOS:
 
 ```bash
 cd /path/to/matriX
 chmod +x run_real_demo.sh
 ./run_real_demo.sh
 ```
+
+Windows PowerShell:
+
+```powershell
+cd C:\path\to\matriX
+bash ./run_real_demo.sh
+```
+
+If Git Bash is installed, `bash ./run_real_demo.sh` works reliably on Windows. If you are already using a Unix-like shell, the `.sh` file can be run directly.
 
 This script will:
 
@@ -180,7 +237,16 @@ If you want to run the same steps manually, use the following sequence.
 
 ### 5.1 Validate datasets
 
+Linux/macOS:
+
 ```bash
+python -m matrix real-dataset-validate --dataset data/real/calibration.yaml
+python -m matrix real-dataset-validate --dataset data/real/held-out.yaml
+```
+
+Windows PowerShell:
+
+```powershell
 python -m matrix real-dataset-validate --dataset data/real/calibration.yaml
 python -m matrix real-dataset-validate --dataset data/real/held-out.yaml
 ```
@@ -189,10 +255,21 @@ Both should return `valid: true`.
 
 ### 5.2 Calibrate the demo model
 
+Linux/macOS:
+
 ```bash
 python -m matrix real-calibrate \
   --dataset data/real/calibration.yaml \
   --out data/real/demo-calibration \
+  --decision-threshold 0.7
+```
+
+Windows PowerShell:
+
+```powershell
+python -m matrix real-calibrate `
+  --dataset data/real/calibration.yaml `
+  --out data/real/demo-calibration `
   --decision-threshold 0.7
 ```
 
@@ -201,6 +278,8 @@ This writes the model artifact to:
 - `data/real/demo-calibration/real_model.json`
 
 ### 5.3 Run diagnosis on a demo sample
+
+Linux/macOS:
 
 ```bash
 python -m matrix diagnose \
@@ -213,6 +292,22 @@ python -m matrix diagnose \
   --repeat-xrd data/real/measurements/mock-cal-001-xrd-repeat.csv \
   --repeat-optical data/real/measurements/mock-cal-001-optical-repeat.csv \
   --model data/real/demo-calibration/real_model.json \
+  --out results/matrix-real-demo-full
+```
+
+Windows PowerShell:
+
+```powershell
+python -m matrix diagnose `
+  --composition data/real/measurements/mock-cal-001-composition.csv `
+  --xrd data/real/measurements/mock-cal-001-xrd.csv `
+  --optical data/real/measurements/mock-cal-001-optical.csv `
+  --metadata data/real/measurements/mock-cal-001-metadata.yaml `
+  --xrd-reference data/real/references/anatase-rutile-profile.csv `
+  --repeat-composition data/real/measurements/mock-cal-001-composition-repeat.csv `
+  --repeat-xrd data/real/measurements/mock-cal-001-xrd-repeat.csv `
+  --repeat-optical data/real/measurements/mock-cal-001-optical-repeat.csv `
+  --model data/real/demo-calibration/real_model.json `
   --out results/matrix-real-demo-full
 ```
 
