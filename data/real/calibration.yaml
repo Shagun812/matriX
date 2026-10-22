@@ -1,23 +1,79 @@
 schema_version: 1
 dataset_id: mock-calibration-study-2026
-
 samples:
-  - sample_id: mock-cal-001
-    material: tio2
-    ground_truth: H1
-    ground_truth_confidence: 0.95
-    composition: measurements/mock-cal-001-composition.csv
-    xrd: measurements/mock-cal-001-xrd.csv
-    optical: measurements/mock-cal-001-optical.csv
-    metadata: measurements/mock-cal-001-metadata.yaml
-    xrd_reference: references/anatase-rutile-profile.csv
-    repeat:
-      composition: measurements/mock-cal-001-composition-repeat.csv
-      xrd: measurements/mock-cal-001-xrd-repeat.csv
-      optical: measurements/mock-cal-001-optical-repeat.csv
-    provenance:
-      source: mock-laboratory-fixture
-      measurement_ids:
-        composition: mock-cal-comp-001
-        xrd: mock-cal-xrd-001
-        optical: mock-cal-optical-001
+- sample_id: mock-cal-001
+  material: tio2
+  ground_truth: H1
+  ground_truth_confidence: 0.95
+  composition: measurements/mock-cal-001-composition.csv
+  xrd: measurements/mock-cal-001-xrd.csv
+  optical: measurements/mock-cal-001-optical.csv
+  metadata: measurements/mock-cal-001-metadata.yaml
+  xrd_reference: references/anatase-rutile-profile.csv
+  repeat:
+    composition: measurements/mock-cal-001-composition-repeat.csv
+    xrd: measurements/mock-cal-001-xrd-repeat.csv
+    optical: measurements/mock-cal-001-optical-repeat.csv
+  provenance:
+    source: synthetic-demo-wksp
+    measurement_ids:
+      composition: mock-cal-001-comp
+      xrd: mock-cal-001-xrd
+      optical: mock-cal-001-optical
+- sample_id: mock-cal-002
+  material: tio2
+  ground_truth: H2
+  ground_truth_confidence: 0.92
+  composition: measurements/mock-cal-002-composition.csv
+  xrd: measurements/mock-cal-002-xrd.csv
+  optical: measurements/mock-cal-002-optical.csv
+  metadata: measurements/mock-cal-002-metadata.yaml
+  xrd_reference: references/anatase-rutile-profile.csv
+  repeat:
+    composition: measurements/mock-cal-002-composition-repeat.csv
+    xrd: measurements/mock-cal-002-xrd-repeat.csv
+    optical: measurements/mock-cal-002-optical-repeat.csv
+  provenance:
+    source: synthetic-demo-wksp
+    measurement_ids:
+      composition: mock-cal-002-comp
+      xrd: mock-cal-002-xrd
+      optical: mock-cal-002-optical
+- sample_id: mock-cal-003
+  material: tio2
+  ground_truth: H3
+  ground_truth_confidence: 0.94
+  composition: measurements/mock-cal-003-composition.csv
+  xrd: measurements/mock-cal-003-xrd.csv
+  optical: measurements/mock-cal-003-optical.csv
+  metadata: measurements/mock-cal-003-metadata.yaml
+  xrd_reference: references/anatase-rutile-profile.csv
+  repeat:
+    composition: measurements/mock-cal-003-composition-repeat.csv
+    xrd: measurements/mock-cal-003-xrd-repeat.csv
+    optical: measurements/mock-cal-003-optical-repeat.csv
+  provenance:
+    source: synthetic-demo-wksp
+    measurement_ids:
+      composition: mock-cal-003-comp
+      xrd: mock-cal-003-xrd
+      optical: mock-cal-003-optical
+- sample_id: mock-cal-004
+  material: tio2
+  ground_truth: H4
+  ground_truth_confidence: 0.91
+  composition: measurements/mock-cal-004-composition.csv
+  xrd: measurements/mock-cal-004-xrd.csv
+  optical: measurements/mock-cal-004-optical.csv
+  metadata: measurements/mock-cal-004-metadata.yaml
+  xrd_reference: references/anatase-rutile-profile.csv
+  repeat:
+    composition: measurements/mock-cal-004-composition-repeat.csv
+    xrd: measurements/mock-cal-004-xrd-repeat.csv
+    optical: measurements/mock-cal-004-optical-repeat.csv
+  provenance:
+    source: synthetic-demo-wksp
+    measurement_ids:
+      composition: mock-cal-004-comp
+      xrd: mock-cal-004-xrd
+      optical: mock-cal-004-optical
