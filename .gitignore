@@ -11,3 +11,4 @@ artifacts/dev_runs/
 artifacts/dev_report/
 artifacts/demo_report/
 artifacts/final_report/
+*.egg-info/
