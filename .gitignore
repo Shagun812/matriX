@@ -4,7 +4,6 @@
 __pycache__/
 *.py[cod]
 mock_run/
-artifacts/
 cache/
 traces/
 .env

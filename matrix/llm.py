@@ -14,8 +14,11 @@ from pathlib import Path
 from typing import Callable, Optional, TypeVar
 
 import numpy as np
+from dotenv import load_dotenv
 
 from .schemas import HYPOTHESES
+
+load_dotenv(Path(__file__).resolve().parent.parent / ".env", override=False)
 
 T = TypeVar("T")
 
