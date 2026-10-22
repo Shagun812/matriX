@@ -1,0 +1,21 @@
+sample_id: synthetic-test-fixture
+material: tio2
+composition:
+  basis: atomic_ratio
+  uncertainty_type: standard_uncertainty
+xrd:
+  two_theta_unit: degree
+  radiation: Cu Kalpha1
+  wavelength_angstrom: 1.5405981
+  geometry: Bragg-Brentano
+  shift_search_range_deg: [-1.0, 1.0]
+xrd_reference:
+  citation: "Synthetic test fixture (not ICDD)"
+  source: "tests/fixtures/real_data/xrd_reference.csv"
+  version: "fixture-v1"
+optical:
+  x_unit: eV
+  measurement_type: synthetic test absorbance
+  signal_type: absorbance
+  tauc_fit_window_ev: [2.25, 3.5]
+  alternate_baseline_window_ev: [1.0, 1.75]

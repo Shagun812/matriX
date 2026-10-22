@@ -69,11 +69,16 @@ class LikelihoodTable:
 
     def save(self, path) -> None:
         np.savez(path, table=self.table, hyps=np.array(self.hyps), checks=np.array(self.checks),
+                 training_domain=np.array("synthetic"), synthetic_data_used=np.array(True),
                  **{f"edges_{c}": e for c, e in self.edges.items()})
 
     @classmethod
     def load(cls, path) -> "LikelihoodTable":
         z = np.load(Path(path), allow_pickle=False)
+        if "training_domain" in z and str(z["training_domain"].item()) != "synthetic":
+            raise ValueError("synthetic likelihood table has an unexpected training domain")
+        if "synthetic_data_used" in z and not bool(z["synthetic_data_used"].item()):
+            raise ValueError("synthetic likelihood table is missing its synthetic-data marker")
         checks = [str(c) for c in z["checks"]]
         return cls(z["table"], {c: z[f"edges_{c}"] for c in checks}, [str(h) for h in z["hyps"]], checks)
 

@@ -1,0 +1,60 @@
+spec_version: "1.0"
+material:
+  id: tio2
+  name: titanium dioxide
+  supported_phases:
+    - anatase
+    - rutile
+references:
+  xrd:
+    radiation:
+      name: Cu Kalpha1
+      wavelength_angstrom: 1.5405981
+    geometry: Bragg-Brentano
+    phases:
+      anatase: "ICDD PDF 21-1272"
+      rutile: "ICDD PDF 21-1276"
+    pattern_data: user_supplied_with_provenance
+composition:
+  basis: atomic_ratio
+  nominal_ratio:
+    numerator: O
+    denominator: Ti
+    value: 2.0
+  uncertainty: required
+checks:
+  C1:
+    method: measured_O_to_Ti_atomic_ratio_with_propagated_uncertainty
+    tolerance: null
+  C2:
+    method: global_sample_displacement_calibration_shift
+    interpretation: shift_is_not_by_itself_a_lattice_or_composition_change
+  C3:
+    method: anatase_rutile_profile_fit
+    output: relative_crystalline_fraction
+    absolute_weight_fraction_calibration: unavailable
+  C4:
+    method: primary_Tauc_and_alternate_linear_baseline_analysis
+    defect_tail_model: not_specified
+    models:
+      anatase:
+        transition: indirect_allowed
+        exponent: 0.5
+      rutile:
+        transition: direct_allowed
+        exponent: 2.0
+    fitting_windows: user_supplied
+    alternate_baseline_window: user_supplied
+  C5:
+    method: compare_only_actual_independent_repeat_measurements
+    simulated_repeat: forbidden
+diagnosis:
+  mode: evidence_first
+  default: UNRESOLVED
+  real_hypothesis_calibration: requires_labeled_real_data
+  synthetic_likelihood_tables: forbidden
+provenance:
+  record_input_paths_and_sha256: true
+  record_sample_metadata: true
+  record_reference_pattern_citation_and_source: true
+  record_processing_spec_version: true

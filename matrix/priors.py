@@ -19,6 +19,9 @@ from .schemas import HYPOTHESES, AgentVisible
 
 
 class PriorModel:
+    training_domain = "synthetic"
+    synthetic_data_used = True
+
     def __init__(self, C: float = 1.0):
         self.pipe = make_pipeline(StandardScaler(), LogisticRegression(C=C, max_iter=2000))
         self.fitted = False

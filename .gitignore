@@ -7,3 +7,7 @@ mock_run/
 cache/
 traces/
 .env
+artifacts/dev_runs/
+artifacts/dev_report/
+artifacts/demo_report/
+artifacts/final_report/

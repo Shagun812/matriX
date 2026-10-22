@@ -447,6 +447,180 @@ marimo run demo.py
 
 The commands show the intended interface. Adjust names to match the code.
 
+### Development and Evaluation
+
+`python -m matrix.run_arms` is the developer/evaluation runner. It runs B0-B5
+experiments on generated simulator cases; it is not a user-facing diagnostic
+command.
+
+`python -m matrix.report` summarizes existing development/evaluation cases and
+saved traces without regenerating experiments or making API calls. Its defaults
+use the existing development cases and `artifacts/dev_runs/`. To run the demo:
+
+```bash
+python -m matrix.report --demo
+```
+
+To specify inputs or output explicitly:
+
+```bash
+python -m matrix.report \
+  --cases artifacts/dev_cases.json \
+  --traces-dir artifacts/dev_runs \
+  --out artifacts/dev_report
+```
+
+The report is labeled **Development / Evaluation Report** and describes
+simulated development data, not real material measurements. `artifacts/dev_runs/`
+is local development data, is ignored by Git, and is not required by end users.
+Generated development reports are ignored as well.
+
+### Real-data diagnosis
+
+`python -m matrix diagnose` is a separate, evidence-first path for user-supplied
+TiO2 composition, XRD, and optical CSVs. It never converts measurements to a
+simulator `Case` and never loads synthetic likelihood/prior artifacts. The
+current implementation reports `UNRESOLVED` by default because real-data
+calibration for H1-H4 must be performed on labeled real measurements and no
+calibrated model is bundled.
+
+Required CSV headers:
+
+- Composition: `element,value,uncertainty,unit`; include Ti and O in matching
+  atomic-amount units (`mol`, `atom`, `atomic_amount`, or `atomic_fraction`).
+  Uncertainty is required and propagated assuming independent supplied values.
+- XRD: `two_theta,intensity`, with strictly increasing `two_theta` in degrees.
+- Optical: `x,signal`; the required metadata identifies x as eV or nm, and
+  currently supports absorbance signal only.
+
+Pass a metadata YAML declaring sample ID, `material: tio2`, composition basis,
+composition uncertainty type (`standard_uncertainty` or `standard_error`),
+XRD unit/radiation/wavelength/geometry, optical measurement type and fitting
+windows. If a reference profile is supplied, also specify an explicit
+`xrd.shift_search_range_deg`. The Cu Kalpha1 wavelength (1.5405981 Å) and
+Bragg-Brentano geometry must match
+[matrix/real_data_spec.yaml](./matrix/real_data_spec.yaml). For example:
+
+```yaml
+sample_id: sample-001
+material: tio2
+composition:
+  basis: atomic_ratio
+  uncertainty_type: standard_uncertainty
+xrd:
+  two_theta_unit: degree
+  radiation: Cu Kalpha1
+  wavelength_angstrom: 1.5405981
+  geometry: Bragg-Brentano
+  shift_search_range_deg: [-0.5, 0.5]
+optical:
+  x_unit: eV
+  measurement_type: UV-Vis absorbance
+  signal_type: absorbance
+  tauc_fit_window_ev: [2.0, 3.2]
+  alternate_baseline_window_ev: [1.0, 1.8]
+```
+
+```bash
+python -m matrix diagnose \
+  --composition data/composition.csv \
+  --xrd data/xrd.csv \
+  --optical data/optical.csv \
+  --metadata data/metadata.yaml \
+  --out results/my-sample
+```
+
+For the clearly labeled, synthetic parser/pipeline fixture demo, run:
+
+```bash
+python -m matrix diagnose \
+  --composition tests/fixtures/real_data/composition.csv \
+  --xrd tests/fixtures/real_data/xrd.csv \
+  --optical tests/fixtures/real_data/optical.csv \
+  --metadata tests/fixtures/real_data/metadata.yaml \
+  --xrd-reference tests/fixtures/real_data/xrd_reference.csv \
+  --repeat-composition tests/fixtures/real_data/repeat_composition.csv
+```
+
+By default, this writes the report files to `results/matrix-real-demo/`.
+These fixtures test software behavior only and are not experimental data.
+
+C2/C3 are only computed when `--xrd-reference` points to a user-supplied
+anatase/rutile profile CSV (`two_theta,anatase_intensity,rutile_intensity`)
+whose provenance is recorded in the metadata as `xrd_reference.citation`,
+`xrd_reference.source`, and `xrd_reference.version`. No ICDD profile data is
+bundled; the synthetic peak constants in `sim_constants.py` are not used.
+Optional `--repeat-composition`, `--repeat-xrd`, and `--repeat-optical` inputs
+allow C5 to compare actual supplied repeats. Without repeat data, C5 is
+`UNAVAILABLE`; no repeat is simulated.
+
+The output directory contains `diagnosis.json`, `evidence.json`, and
+`report.md`. C1 reports stoichiometric deviation and supplied uncertainty
+without an invented tolerance. C3 reports relative crystalline fractions,
+not absolute wt%. C4 reports both configured Tauc model fits and a caller-
+windowed alternate linear-baseline fit. A physical defect-tail model is not
+specified or fitted. `UNRESOLVED` means no calibrated
+real-data H1-H4 diagnosis is being claimed; it does not mean the measurements
+are invalid. Inputs and reference provenance are recorded with SHA-256 hashes.
+
+The files under `tests/fixtures/real_data/` are synthetic parser/workflow test
+fixtures only, not measurements or calibration data.
+
+### Real-data calibration and held-out validation
+
+The real-data calibration workflow is separate from the simulator and uses
+only supplied real-measurement datasets:
+
+```text
+real dataset
+    -> real-dataset-validate
+    -> real-calibrate
+    -> real-validate on a separate held-out dataset
+    -> diagnose with the real-calibrated model
+```
+
+See [docs/real_dataset_schema.md](./docs/real_dataset_schema.md) for the YAML
+manifest and provenance schema. Validate a dataset before calibration:
+
+```bash
+python -m matrix real-dataset-validate --dataset data/calibration.yaml
+```
+
+Calibration requires labeled H1, H2, H3, and H4 samples and an explicit
+decision threshold. The prior is uniform by default; `--prior empirical`
+selects the labeled training-set prevalence, and `--prior explicit
+--explicit-prior priors.json` accepts caller-supplied probabilities. The
+empirical prior is not assumed to represent the real-world population.
+
+```bash
+python -m matrix real-calibrate \
+  --dataset data/calibration.yaml \
+  --out results/real-model \
+  --prior uniform \
+  --decision-threshold 0.8
+
+python -m matrix real-validate \
+  --model results/real-model/real_model.json \
+  --dataset data/held-out.yaml \
+  --out results/held-out-validation
+
+python -m matrix diagnose \
+  --composition data/sample/composition.csv \
+  --xrd data/sample/xrd.csv \
+  --optical data/sample/optical.csv \
+  --metadata data/sample/metadata.yaml \
+  --model results/real-model/real_model.json \
+  --out results/sample-diagnosis
+```
+
+Calibration excludes `UNKNOWN` and `UNRESOLVED` labels. Validation rejects
+overlap with training data by sample ID, raw-file hash, or measurement ID.
+Models are marked `training_domain: real` and `synthetic_data_used: false`;
+synthetic likelihoods and priors are not accepted by real diagnosis. The
+software fixtures above are for tests only and must not be used to claim
+scientific calibration or validation. Actual scientific validation starts
+only when genuine, labeled experimental data are supplied.
+
 ---
 
 ## 12. Build plan with time boxes
