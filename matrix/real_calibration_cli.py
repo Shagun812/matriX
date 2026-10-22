@@ -17,8 +17,8 @@ def main(argv: list[str] | None = None) -> int:
         args = ["--help"]
     command, *command_args = args
     parser = argparse.ArgumentParser(prog=f"python -m matrix {command}")
-    if command == "real-dataset-validate":
-        parser.add_argument("--dataset", required=True)
+    if command in {"real-dataset-validate", "real-validate-dataset"}:
+        parser.add_argument("--dataset", "--manifest", dest="dataset", required=True)
         parser.add_argument("--out", help="optional output directory for validation.json")
         parsed = parser.parse_args(command_args)
         result = validate_dataset(parsed.dataset)
@@ -29,7 +29,7 @@ def main(argv: list[str] | None = None) -> int:
             (output / "validation.json").write_text(json.dumps(result, indent=2) + "\n")
         return 0 if result["valid"] else 1
     if command == "real-calibrate":
-        parser.add_argument("--dataset", required=True)
+        parser.add_argument("--dataset", "--manifest", dest="dataset", required=True)
         parser.add_argument("--out", required=True)
         parser.add_argument("--prior", choices=["uniform", "empirical", "explicit"], default="uniform")
         parser.add_argument("--explicit-prior", help="JSON file with H1,H2,H3,H4 probabilities")
@@ -38,6 +38,9 @@ def main(argv: list[str] | None = None) -> int:
         parser.add_argument("--decision-threshold", type=float, required=True)
         parsed = parser.parse_args(command_args)
         try:
+            validation = validate_dataset(parsed.dataset)
+            if validation.get("synthetic_fixture"):
+                raise ValueError("synthetic software-test fixtures cannot be used for calibration")
             result = calibrate(
                 parsed.dataset,
                 parsed.out,
@@ -49,16 +52,19 @@ def main(argv: list[str] | None = None) -> int:
             )
         except (OSError, ValueError, json.JSONDecodeError) as exc:
             parser.error(str(exc))
-        print(f"Real-data calibration model written to: {parsed.out}/real_model.json")
+        print(f"Real-data calibration model written to: {result['artifact_path']}")
         print(f"Dataset: {result['dataset_id']} ({result['training_sample_count']} labeled H1-H4 samples)")
         print(f"Prior: {result['prior']['type']}")
         return 0
-    if command == "real-validate":
+    if command in {"real-validate", "real-evaluate"}:
         parser.add_argument("--model", required=True)
-        parser.add_argument("--dataset", required=True)
+        parser.add_argument("--dataset", "--manifest", dest="dataset", required=True)
         parser.add_argument("--out", required=True)
         parsed = parser.parse_args(command_args)
         try:
+            validation = validate_dataset(parsed.dataset)
+            if validation.get("synthetic_fixture"):
+                raise ValueError("synthetic software-test fixtures cannot be used for held-out validation")
             result = validate_heldout(parsed.model, parsed.dataset, parsed.out)
         except (OSError, ValueError, json.JSONDecodeError) as exc:
             parser.error(str(exc))
@@ -70,5 +76,8 @@ def main(argv: list[str] | None = None) -> int:
             + ("not reported (no eligible labeled samples)" if accuracy is None else f"{accuracy:.3f}")
         )
         return 0
-    parser.error("command must be real-dataset-validate, real-calibrate, or real-validate")
+    parser.error(
+        "command must be real-validate-dataset, real-dataset-validate, "
+        "real-calibrate, real-evaluate, or real-validate"
+    )
     return 2

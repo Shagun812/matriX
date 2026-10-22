@@ -80,6 +80,7 @@ class RealDataset:
     dataset_hash: str
     raw_hashes: frozenset[str]
     measurement_ids: frozenset[str]
+    synthetic_fixture: bool = False
 
 
 def file_sha256(path: str | Path) -> str:
@@ -142,6 +143,7 @@ def read_dataset(path: str | Path) -> RealDataset:
     seen_ids: set[str] = set()
     seen_file_hashes: dict[str, str] = {}
     seen_measurement_ids: dict[str, str] = {}
+    synthetic_fixture = manifest.get("synthetic_fixture") is True
     for index, raw in enumerate(rows):
         sample_id = raw.get("sample_id", f"row-{index}") if isinstance(raw, dict) else f"row-{index}"
         try:
@@ -154,7 +156,7 @@ def read_dataset(path: str | Path) -> RealDataset:
             seen_ids.add(sample_id)
 
             label = raw.get("ground_truth")
-            label = "UNKNOWN" if label is None else str(label).upper()
+            label = "UNKNOWN" if label is None else str(label)
             if label not in REAL_LABELS:
                 raise ValueError(f"invalid ground_truth {label!r}")
             if "ground_truth_confidence" not in raw:
@@ -173,6 +175,14 @@ def read_dataset(path: str | Path) -> RealDataset:
             ids = provenance["measurement_ids"]
             if not isinstance(ids, dict) or not ids:
                 raise ValueError("provenance.measurement_ids must map measurement types to IDs")
+            missing_measurement_ids = {
+                "composition", "xrd", "optical"
+            } - set(ids)
+            if missing_measurement_ids:
+                raise ValueError(
+                    "provenance.measurement_ids missing required IDs for: "
+                    + ", ".join(sorted(missing_measurement_ids))
+                )
             parsed_ids = {}
             for measurement, identifier in ids.items():
                 if not isinstance(identifier, str) or not identifier.strip():
@@ -199,6 +209,9 @@ def read_dataset(path: str | Path) -> RealDataset:
                     )
                 seen_file_hashes[digest] = f"{sample_id}:{name}"
                 raw_hashes.add(digest)
+            metadata = yaml.safe_load(resolved["metadata"].read_text(encoding="utf-8"))
+            if isinstance(metadata, dict) and metadata.get("synthetic_fixture") is True:
+                synthetic_fixture = True
             if raw.get("material") != "tio2":
                 raise ValueError("material must be tio2")
             samples.append(
@@ -250,6 +263,7 @@ def read_dataset(path: str | Path) -> RealDataset:
         dataset_hash=dataset_hash,
         raw_hashes=frozenset(raw_hashes),
         measurement_ids=frozenset(measurement_ids),
+        synthetic_fixture=synthetic_fixture,
     )
 
 
@@ -283,8 +297,13 @@ def validate_dataset(path: str | Path) -> dict[str, Any]:
             "dataset_id": dataset.dataset_id,
             "dataset_hash": dataset.dataset_hash,
             "sample_count": len(dataset.samples),
+            "synthetic_fixture": dataset.synthetic_fixture,
             "label_counts": _label_counts(dataset),
             "errors": issues,
+            "warnings": (
+                ["dataset contains explicitly marked synthetic software-test fixtures"]
+                if dataset.synthetic_fixture else []
+            ),
         }
     except (DatasetValidationError, OSError, ValueError, yaml.YAMLError) as exc:
         errors = exc.issues if isinstance(exc, DatasetValidationError) else [

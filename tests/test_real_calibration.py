@@ -1,4 +1,5 @@
 import json
+import hashlib
 from pathlib import Path
 
 import pytest
@@ -11,6 +12,7 @@ from matrix.real_calibration import (
     validate_heldout,
 )
 from matrix.real_dataset import read_dataset, validate_dataset
+from matrix.real_data_split import deterministic_sample_split
 from matrix.real_data import diagnose
 
 
@@ -19,7 +21,7 @@ FIXTURES = Path(__file__).parent / "fixtures" / "real_data"
 
 def make_dataset(root: Path, dataset_id: str, labels, *, reuse=None):
     samples = []
-    salt = (sum(ord(character) for character in dataset_id) % 50) / 10000
+    salt = int(hashlib.sha256(dataset_id.encode()).hexdigest()[:8], 16) / 2**32 / 1000
     for index, label in enumerate(labels):
         sample_id = f"{dataset_id}-sample-{index}"
         folder = root / f"sample-{index}"
@@ -101,6 +103,7 @@ def test_dataset_parser_and_validator_allow_unknown_and_unresolved(train_dataset
     assert result["valid"]
     assert result["label_counts"]["UNKNOWN"] == 1
     assert result["label_counts"]["UNRESOLVED"] == 1
+    assert result["synthetic_fixture"] is True
 
 
 def test_dataset_validator_detects_duplicate_sample_ids(tmp_path, train_dataset):
@@ -186,6 +189,23 @@ def test_calibration_likelihoods_reproduce_for_same_dataset(tmp_path, train_data
     assert first["bin_definitions"] == second["bin_definitions"]
 
 
+def test_deterministic_split_is_reproducible_and_sample_level(train_dataset):
+    dataset = read_dataset(train_dataset)
+    first = deterministic_sample_split(dataset, validation_fraction=0.33, seed=7)
+    second = deterministic_sample_split(dataset, validation_fraction=0.33, seed=7)
+    assert first == second
+    assert set(first[0]).isdisjoint(first[1])
+    assert set(first[0]) | set(first[1]) == {sample.sample_id for sample in dataset.samples}
+
+
+def test_calibration_accepts_json_artifact_path(tmp_path, train_dataset):
+    model_path = tmp_path / "real_model.json"
+    calibrate(train_dataset, model_path, decision_threshold=0.7)
+    assert model_path.is_file()
+    assert (tmp_path / "real_model_evidence.csv").is_file()
+    assert (tmp_path / "real_model_calibration.json").is_file()
+
+
 def test_heldout_validation_reports_metrics_and_excludes_unknown(tmp_path, train_dataset):
     model_path = tmp_path / "cal" / "real_model.json"
     calibrate(train_dataset, model_path.parent, decision_threshold=0.7)
@@ -196,12 +216,30 @@ def test_heldout_validation_reports_metrics_and_excludes_unknown(tmp_path, train
     )
     result = validate_heldout(model_path, heldout, tmp_path / "validation")
     metrics = result["metrics"]
-    assert metrics["eligible_labeled_sample_count"] == 5
+    assert metrics["eligible_labeled_sample_count"] == 4
     assert metrics["unknown_unlabeled_excluded"] == 1
+    assert metrics["unresolved_ground_truth_excluded"] == 1
     assert set(metrics["per_class_recall"]) == {"H1", "H2", "H3", "H4"}
     assert metrics["overall_accuracy_95_ci"] is not None
     assert metrics["per_check_usage_available_sample_count"]["C5"] == 0
     assert (tmp_path / "validation" / "validation.json").is_file()
+
+
+def test_heldout_metrics_do_not_count_unresolved_ground_truth_as_hypothesis(tmp_path, train_dataset):
+    model_path = tmp_path / "cal" / "real_model.json"
+    calibrate(train_dataset, model_path.parent, decision_threshold=0.7)
+    heldout = make_dataset(
+        tmp_path / "heldout",
+        "synthetic-software-test-unlabeled",
+        ["UNKNOWN", "UNRESOLVED"],
+    )
+    result = validate_heldout(model_path, heldout, tmp_path / "validation")
+    metrics = result["metrics"]
+    assert metrics["eligible_labeled_sample_count"] == 0
+    assert metrics["overall_accuracy"] is None
+    assert metrics["accuracy_on_resolvable"] is None
+    assert metrics["unknown_unlabeled_excluded"] == 1
+    assert metrics["unresolved_ground_truth_excluded"] == 1
 
 
 def test_heldout_validation_fails_on_sample_id_leakage(tmp_path, train_dataset):
@@ -284,29 +322,15 @@ def test_predict_prior_and_missing_c5_are_explicit(tmp_path, train_dataset):
 def test_real_calibration_cli_workflow(tmp_path, train_dataset):
     from matrix.__main__ import main
 
-    heldout = make_dataset(
-        tmp_path / "heldout",
-        "synthetic-software-test-cli-heldout",
-        ["H1", "H2", "H3", "H4"],
-    )
     validated = tmp_path / "dataset-validation"
     assert main(["real-dataset-validate", "--dataset", str(train_dataset), "--out", str(validated)]) == 0
-
-    calibrated = tmp_path / "calibration"
-    assert main([
-        "real-calibrate",
-        "--dataset", str(train_dataset),
-        "--out", str(calibrated),
-        "--decision-threshold", "0.8",
-    ]) == 0
-
-    validation = tmp_path / "heldout-validation"
-    assert main([
-        "real-validate",
-        "--model", str(calibrated / "real_model.json"),
-        "--dataset", str(heldout),
-        "--out", str(validation),
-    ]) == 0
     assert (validated / "validation.json").is_file()
-    assert (calibrated / "real_model.json").is_file()
-    assert (validation / "validation.json").is_file()
+    report = json.loads((validated / "validation.json").read_text())
+    assert report["synthetic_fixture"] is True
+    with pytest.raises(SystemExit):
+        main([
+            "real-calibrate",
+            "--manifest", str(train_dataset),
+            "--out", str(tmp_path / "must-not-calibrate.json"),
+            "--decision-threshold", "0.8",
+        ])

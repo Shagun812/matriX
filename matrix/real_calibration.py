@@ -25,6 +25,7 @@ from .real_dataset import (
     validate_dataset,
     write_evidence_csv,
 )
+from .real_data_split import check_train_validation_leakage
 
 MODEL_SCHEMA_VERSION = 1
 MODEL_FORMAT = "matrix-real-likelihood-model"
@@ -212,10 +213,20 @@ def calibrate(
         "calibration_timestamp_utc": utc_timestamp(),
         "calibration_version": "matrix-real-calibration-1",
     }
-    out_dir = Path(out_dir)
-    out_dir.mkdir(parents=True, exist_ok=True)
-    (out_dir / "real_model.json").write_text(json.dumps(model, indent=2) + "\n", encoding="utf-8")
-    write_evidence_csv(evidence_rows, out_dir / "evidence.csv")
+    output_path = Path(out_dir)
+    if output_path.suffix.lower() == ".json":
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        model_path = output_path
+        evidence_path = output_path.with_name(f"{output_path.stem}_evidence.csv")
+        summary_path = output_path.with_name(f"{output_path.stem}_calibration.json")
+    else:
+        output_path.mkdir(parents=True, exist_ok=True)
+        model_path = output_path / "real_model.json"
+        evidence_path = output_path / "evidence.csv"
+        summary_path = output_path / "calibration.json"
+    model["artifact_path"] = str(model_path)
+    model_path.write_text(json.dumps(model, indent=2) + "\n", encoding="utf-8")
+    write_evidence_csv(evidence_rows, evidence_path)
     calibration_summary = {
         "model_id": model["model_id"],
         "training_domain": "real",
@@ -227,7 +238,7 @@ def calibrate(
         "excluded_label_counts": model["excluded_label_counts"],
         "prior": model["prior"],
     }
-    (out_dir / "calibration.json").write_text(
+    summary_path.write_text(
         json.dumps(calibration_summary, indent=2) + "\n", encoding="utf-8"
     )
     return model
@@ -293,31 +304,12 @@ def predict_real(model: dict[str, Any], checks: dict[str, Any]) -> dict[str, Any
 
 def _check_leakage(model: dict[str, Any], dataset) -> None:
     training = model.get("training_provenance", {})
-    training_samples = training.get("samples", {})
-    held_ids = {sample.sample_id for sample in dataset.samples}
-    overlap_ids = held_ids & set(training_samples)
-    issues = []
-    if overlap_ids:
-        issues.append(f"train/validation leakage by sample_id: {', '.join(sorted(overlap_ids))}")
-    validation_samples = load_dataset_samples(dataset)
-    training_hashes = set(training.get("raw_file_hashes", []))
-    training_measurement_ids = set(training.get("measurement_ids", []))
-    overlap_hashes = set(dataset.raw_hashes) & training_hashes
-    if overlap_hashes:
-        issues.append(f"train/validation leakage by raw-file hash: {len(overlap_hashes)} overlapping file(s)")
-    held_measurement_ids = {
-        identifier
-        for sample in validation_samples
-        for identifier in sample["measurement_ids"].values()
-    }
-    overlap_measurements = held_measurement_ids & training_measurement_ids
-    if overlap_measurements:
-        issues.append(
-            "train/validation leakage by measurement ID: "
-            + ", ".join(sorted(overlap_measurements))
-        )
-    if issues:
-        raise ValueError("; ".join(issues))
+    check_train_validation_leakage(
+        training_sample_ids=training.get("sample_ids", []),
+        training_raw_hashes=training.get("raw_file_hashes", []),
+        training_measurement_ids=training.get("measurement_ids", []),
+        validation=dataset,
+    )
 
 
 def _wilson(successes: int, n: int, z: float = 1.959963984540054) -> list[float] | None:
@@ -331,16 +323,20 @@ def _wilson(successes: int, n: int, z: float = 1.959963984540054) -> list[float]
 
 
 def _validation_metrics(rows, model, predictions):
-    known = [
+    labeled = [
         (row, pred) for row, pred in zip(rows, predictions)
-        if row["ground_truth"] in {*SUPERVISED_LABELS, "UNRESOLVED"}
+        if row["ground_truth"] in SUPERVISED_LABELS
     ]
-    resolvable = [(row, pred) for row, pred in known if row["ground_truth"] in SUPERVISED_LABELS]
+    unresolved_truth = [
+        (row, pred) for row, pred in zip(rows, predictions)
+        if row["ground_truth"] == "UNRESOLVED"
+    ]
+    resolvable = labeled
     labels = [*SUPERVISED_LABELS, "UNRESOLVED"]
     matrix = {true: {pred: 0 for pred in labels} for true in labels}
-    for row, pred in known:
+    for row, pred in (*labeled, *unresolved_truth):
         matrix[row["ground_truth"]][pred["diagnosis"]] += 1
-    correct = sum(row["ground_truth"] == pred["diagnosis"] for row, pred in known)
+    correct = sum(row["ground_truth"] == pred["diagnosis"] for row, pred in labeled)
     resolvable_correct = sum(row["ground_truth"] == pred["diagnosis"] for row, pred in resolvable)
     recalls = {}
     recall_ci = {}
@@ -349,11 +345,13 @@ def _validation_metrics(rows, model, predictions):
         hits = sum(pred["diagnosis"] == label for _, pred in members)
         recalls[label] = hits / len(members) if members else None
         recall_ci[label] = _wilson(hits, len(members))
-    confirmations = [(row, pred) for row, pred in known if pred["diagnosis"] in SUPERVISED_LABELS]
+    confirmations = [(row, pred) for row, pred in labeled if pred["diagnosis"] in SUPERVISED_LABELS]
     wrong_confirmations = sum(row["ground_truth"] != pred["diagnosis"] for row, pred in confirmations)
-    wrong_all = sum(row["ground_truth"] != pred["diagnosis"] and pred["diagnosis"] in SUPERVISED_LABELS for row, pred in known)
-    predictions_known = [pred for _, pred in known]
-    unresolved = sum(pred["diagnosis"] == "UNRESOLVED" for pred in predictions_known)
+    wrong_all = sum(
+        row["ground_truth"] != pred["diagnosis"] and pred["diagnosis"] in SUPERVISED_LABELS
+        for row, pred in labeled
+    )
+    unresolved = sum(pred["diagnosis"] == "UNRESOLVED" for _, pred in labeled)
 
     probabilities = []
     targets = []
@@ -378,10 +376,11 @@ def _validation_metrics(rows, model, predictions):
         for check in ("C1", "C2", "C3", "C4", "C5")
     }
     return {
-        "eligible_labeled_sample_count": len(known),
+        "eligible_labeled_sample_count": len(labeled),
         "unknown_unlabeled_excluded": sum(row["ground_truth"] == "UNKNOWN" for row in rows),
-        "overall_accuracy": correct / len(known) if known else None,
-        "overall_accuracy_95_ci": _wilson(correct, len(known)),
+        "unresolved_ground_truth_excluded": len(unresolved_truth),
+        "overall_accuracy": correct / len(labeled) if labeled else None,
+        "overall_accuracy_95_ci": _wilson(correct, len(labeled)),
         "accuracy_on_resolvable": resolvable_correct / len(resolvable) if resolvable else None,
         "accuracy_on_resolvable_95_ci": _wilson(resolvable_correct, len(resolvable)),
         "resolvable_sample_count": len(resolvable),
@@ -392,9 +391,9 @@ def _validation_metrics(rows, model, predictions):
         "wrong_confirmation_rate_among_confirmations": (
             wrong_confirmations / len(confirmations) if confirmations else None
         ),
-        "wrong_confirmation_rate_among_eligible": wrong_all / len(known) if known else None,
+        "wrong_confirmation_rate_among_eligible": wrong_all / len(labeled) if labeled else None,
         "unresolved_count": unresolved,
-        "unresolved_rate": unresolved / len(known) if known else None,
+        "unresolved_rate": unresolved / len(labeled) if labeled else None,
         "calibration": {
             "multiclass_brier_score_on_H1_H4_labeled": brier,
             "expected_calibration_error_10_bins_on_H1_H4_labeled": ece,

@@ -1,4 +1,5 @@
 sample_id: synthetic-test-fixture
+synthetic_fixture: true
 material: tio2
 composition:
   basis: atomic_ratio

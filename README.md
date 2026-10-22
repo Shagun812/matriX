@@ -580,7 +580,8 @@ real dataset
 ```
 
 See [docs/real_dataset_schema.md](./docs/real_dataset_schema.md) for the YAML
-manifest and provenance schema. Validate a dataset before calibration:
+manifest and provenance schema. Validate a dataset before calibration (the equivalent
+`real-validate-dataset --manifest` spelling is also supported):
 
 ```bash
 python -m matrix real-dataset-validate --dataset data/calibration.yaml
@@ -594,14 +595,14 @@ empirical prior is not assumed to represent the real-world population.
 
 ```bash
 python -m matrix real-calibrate \
-  --dataset data/calibration.yaml \
-  --out results/real-model \
+  --manifest data/calibration.yaml \
+  --out results/real_model.json \
   --prior uniform \
   --decision-threshold 0.8
 
-python -m matrix real-validate \
-  --model results/real-model/real_model.json \
-  --dataset data/held-out.yaml \
+python -m matrix real-evaluate \
+  --model results/real_model.json \
+  --manifest data/held-out.yaml \
   --out results/held-out-validation
 
 python -m matrix diagnose \
@@ -620,6 +621,15 @@ synthetic likelihoods and priors are not accepted by real diagnosis. The
 software fixtures above are for tests only and must not be used to claim
 scientific calibration or validation. Actual scientific validation starts
 only when genuine, labeled experimental data are supplied.
+
+Datasets with `synthetic_fixture: true` in the manifest or a metadata file
+are identified by validation and rejected by the calibration and held-out
+evaluation CLI commands. Calibration output can be a directory (containing
+`real_model.json`, `calibration.json`, and `evidence.csv`) or a `.json` model
+path (with adjacent calibration-summary and evidence files).
+The library also exposes a deterministic, sample-level split helper for
+software development; repeats remain grouped with their sample, and the
+helper is not a substitute for a separately collected scientific holdout.
 
 ---
 
